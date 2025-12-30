@@ -105,13 +105,13 @@ func (s *Server) handleRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var longUrl string
-	err := s.store.DB.QueryRow("SELECT long_url FROM urls WHERE short_url = $1", code).Scan(&longUrl)
+	longUrl, err := s.store.GetLongUrl(code)
 	if err == sql.ErrNoRows {
 		http.Error(w, "URL not found", http.StatusNotFound)
 		return
 	} else if err != nil {
 		http.Error(w, "Database Error", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Cache-Control", "no-cache") // Optional: prevents heavy browser caching during testing

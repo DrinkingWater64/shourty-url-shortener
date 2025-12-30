@@ -42,3 +42,12 @@ func (s *Storage) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint64) st
 	_, err = s.DB.Exec("UPDATE urls SET short_url = $1 WHERE id = $2", shortCode, id)
 	return shortCode, err
 }
+
+func (s *Storage) GetLongUrl(shortCode string) (string, error) {
+	var longUrl string
+	err := s.DB.QueryRow("SELECT long_url FROM urls WHERE short_url = $1", shortCode).Scan(&longUrl)
+	if err != nil {
+		return "", err
+	}
+	return longUrl, nil
+}
