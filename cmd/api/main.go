@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"shourty/internal/base62"
 	"shourty/internal/storage"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type ShortenResponse struct {
@@ -20,11 +23,28 @@ type ShortenRequest struct {
 }
 
 type Server struct {
-	store *storage.Storage
+	store   *storage.Storage
+	baseURL string
 }
 
 func main() {
-	connStr := "postgres://user:password@localhost:5432/shortener?sslmode=disable"
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found, using environment variables")
+	}
+
+	// Get database connection string from environment
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		log.Fatal("DATABASE_URL environment variable is required")
+	}
+
+	// Get base URL from environment
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		log.Fatal("BASE_URL environment variable is required")
+	}
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -37,7 +57,8 @@ func main() {
 	}
 
 	s := &Server{
-		store: &storage.Storage{DB: db},
+		store:   &storage.Storage{DB: db},
+		baseURL: baseURL,
 	}
 
 	http.HandleFunc("/shorten", s.handleShorten)
@@ -66,7 +87,7 @@ func (s *Server) handleShorten(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := ShortenResponse{
-		ShortUrl: fmt.Sprintf("http://localhost:8080/%s", shortCode),
+		ShortUrl: fmt.Sprintf("%s/%s", s.baseURL, shortCode),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
