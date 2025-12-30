@@ -26,7 +26,7 @@ func NewPostgresStorage(connStr string) (*Storage, error) {
 func (s *Storage) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint64) string) (string, error) {
 	var shortCode string
 
-	err := s.DB.QueryRow("SELECT short_code FROM urls WHERE long_url = $1", longUrl).Scan(&shortCode)
+	err := s.DB.QueryRow("SELECT short_url FROM urls WHERE long_url = $1", longUrl).Scan(&shortCode)
 	if err == nil {
 		return shortCode, nil
 	}
@@ -39,6 +39,6 @@ func (s *Storage) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint64) st
 
 	shortCode = encodeFunc(id)
 
-	_, err = s.DB.Exec("UPDATE urls SET short_code = $1 WHERE id = $2", shortCode, id)
+	_, err = s.DB.Exec("UPDATE urls SET short_url = $1 WHERE id = $2", shortCode, id)
 	return shortCode, err
 }
