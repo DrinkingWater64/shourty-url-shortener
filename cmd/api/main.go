@@ -106,7 +106,7 @@ func (s *Server) handleRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var longUrl string
-	err := s.store.DB.QueryRow("SELECT long_url FROM urls WHERE short_code = $1", code).Scan(&longUrl)
+	err := s.store.DB.QueryRow("SELECT long_url FROM urls WHERE short_url = $1", code).Scan(&longUrl)
 	if err == sql.ErrNoRows {
 		http.Error(w, "URL not found", http.StatusNotFound)
 		return
