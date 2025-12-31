@@ -5,4 +5,4 @@ CREATE TABLE IF NOT EXISTS urls (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_short_code on urls(short_code);
+CREATE INDEX idx_short_code on urls(short_url);
