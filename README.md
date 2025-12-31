@@ -1,6 +1,6 @@
 # Shourty - URL Shortener
 
-A simple and efficient URL shortener service built with Go and PostgreSQL.
+This project is an educational experiment to demonstrate how to scale APIs horizontally and optimize database interactions. It starts as a simple Go application and evolves into a distributed system.
 
 ## Features
 
@@ -9,6 +9,19 @@ A simple and efficient URL shortener service built with Go and PostgreSQL.
 - PostgreSQL database for persistence
 - Environment-based configuration
 - Docker Compose for easy database setup
+
+## Architecture & Optimization
+
+This project demonstrates several key scalability patterns:
+
+### 1. Load Balancing (Nginx)
+We use Nginx as a reverse proxy to distribute incoming traffic across **3 concurrent API instances** (`api-1`, `api-2`, `api-3`) using a Round-Robin strategy. This ensures no single instance becomes a bottleneck and provides redundancy.
+
+### 2. Caching (Redis)
+To reduce load on the primary PostgreSQL database, we use **Redis** to cache URL mappings. Since URL redirects are 90% read-heavy, this significantly improves response times and throughput.
+
+### 3. Database Connection Pooling
+The application implements **Connection Pooling** to efficiently manage database resources. Instead of opening a new connection for every request, we maintain a pool of reusable connections to handle high concurrency without exhausting database limits.
 
 ## Prerequisites
 
