@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"log"
 
 	_ "github.com/lib/pq"
 )
@@ -44,6 +45,7 @@ func (s *PostgresStore) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint
 }
 
 func (s *PostgresStore) GetLongUrl(shortCode string) (string, error) {
+	log.Printf("DB HIT: looking up %s", shortCode)
 	var longUrl string
 	err := s.DB.QueryRow("SELECT long_url FROM urls WHERE short_url = $1", shortCode).Scan(&longUrl)
 	if err != nil {

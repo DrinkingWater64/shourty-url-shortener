@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -26,8 +27,10 @@ func (r *RedisStore) GetLongUrl(shortCode string) (string, error) {
 
 	val, err := r.client.Get(ctx, key).Result()
 	if err == nil {
+		log.Printf("CACHE HIT: %s -> %s", shortCode, val)
 		return val, nil
 	}
+	log.Printf("CACHE MISS: %s", shortCode)
 
 	longUrl, err := r.next.GetLongUrl(shortCode)
 	if err != nil {
