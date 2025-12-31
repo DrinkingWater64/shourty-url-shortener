@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 type ShortenResponse struct {
@@ -23,7 +25,7 @@ type ShortenRequest struct {
 }
 
 type Server struct {
-	store   *storage.Storage
+	store   storage.URLStore
 	baseURL string
 }
 
@@ -45,6 +47,11 @@ func main() {
 		log.Fatal("BASE_URL environment variable is required")
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		log.Fatal("REDIS_ADDR environment variable is required")
+	}
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -56,8 +63,28 @@ func main() {
 		log.Fatalf("cannot ping to db %v", err)
 	}
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "",
+		DB:       0,
+	})
+
+	var ctx = context.Background()
+
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		log.Fatalf("cannot ping to redis %v", err)
+	}
+
+	postgresStore, err := storage.NewPostgresStore(connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	redisStore := storage.NewRedisStore(postgresStore, redisClient)
+
 	s := &Server{
-		store:   &storage.Storage{DB: db},
+		// store:   &storage.PostgresStore{DB: db},
+		store:   redisStore,
 		baseURL: baseURL,
 	}
 
