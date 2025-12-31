@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -20,6 +21,11 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
+
+	// Connection Pooling Guidelines
+	db.SetMaxOpenConns(100)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	return &PostgresStore{DB: db}, nil
 }
