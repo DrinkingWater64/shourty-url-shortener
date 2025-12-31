@@ -14,7 +14,7 @@ func Encode(id uint64) string {
 	var res strings.Builder
 	for id > 0 {
 		res.WriteByte(charset[id%62])
-		id = id / 10
+		id = id / 62
 	}
 
 	encoded := res.String()

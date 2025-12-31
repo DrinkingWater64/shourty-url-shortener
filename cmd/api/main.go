@@ -83,7 +83,6 @@ func main() {
 	redisStore := storage.NewRedisStore(postgresStore, redisClient)
 
 	s := &Server{
-		// store:   &storage.PostgresStore{DB: db},
 		store:   redisStore,
 		baseURL: baseURL,
 	}
@@ -127,7 +126,7 @@ func (s *Server) handleRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := strings.TrimPrefix(r.URL.Path, "/")
-	if len(code) != 7 {
+	if len(code) > 20 {
 		http.Error(w, "Invalid short code format", http.StatusBadRequest)
 		return
 	}

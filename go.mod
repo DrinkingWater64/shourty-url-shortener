@@ -5,6 +5,7 @@ go 1.25.5
 require github.com/lib/pq v1.10.9
 
 require (
+	github.com/bwmarrin/snowflake v0.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.17.2
 )

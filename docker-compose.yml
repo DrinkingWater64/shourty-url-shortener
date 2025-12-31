@@ -41,7 +41,7 @@ services:
     environment:
       - DATABASE_URL=postgres://shourty_user:shourty_pass@postgres:5432/shortener?sslmode=disable
       - REDIS_ADDR=redis:6379
-      - BASE_URL=http://localhost
+      - BASE_URL=http://localhost:9090
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,7 +55,7 @@ services:
     environment:
       - DATABASE_URL=postgres://shourty_user:shourty_pass@postgres:5432/shortener?sslmode=disable
       - REDIS_ADDR=redis:6379
-      - BASE_URL=http://localhost
+      - BASE_URL=http://localhost:9090
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,7 +69,7 @@ services:
     environment:
       - DATABASE_URL=postgres://shourty_user:shourty_pass@postgres:5432/shortener?sslmode=disable
       - REDIS_ADDR=redis:6379
-      - BASE_URL=http://localhost
+      - BASE_URL=http://localhost:9090
     depends_on:
       postgres:
         condition: service_healthy

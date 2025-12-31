@@ -5,11 +5,13 @@ import (
 	"log"
 	"time"
 
+	"github.com/bwmarrin/snowflake"
 	_ "github.com/lib/pq"
 )
 
 type PostgresStore struct {
-	DB *sql.DB
+	DB   *sql.DB
+	Node *snowflake.Node
 }
 
 func NewPostgresStore(connStr string) (*PostgresStore, error) {
@@ -27,7 +29,12 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	return &PostgresStore{DB: db}, nil
+	node, err := snowflake.NewNode(1)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostgresStore{DB: db, Node: node}, nil
 }
 
 func (s *PostgresStore) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint64) string) (string, error) {
@@ -38,16 +45,20 @@ func (s *PostgresStore) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint
 		return shortCode, nil
 	}
 
-	var id uint64
-	err = s.DB.QueryRow("INSERT INTO urls (long_url) VALUES ($1) RETURNING id", longUrl).Scan(&id)
+	// Generate ID
+	snowflakeID := s.Node.Generate()
+	id := uint64(snowflakeID.Int64())
+
+	// Generate short code
+	shortCode = encodeFunc(id)
+
+	// Insert into DB
+	_, err = s.DB.Exec("INSERT INTO urls (id, long_url, short_url) VALUES ($1, $2, $3)", id, longUrl, shortCode)
 	if err != nil {
 		return "", err
 	}
 
-	shortCode = encodeFunc(id)
-
-	_, err = s.DB.Exec("UPDATE urls SET short_url = $1 WHERE id = $2", shortCode, id)
-	return shortCode, err
+	return shortCode, nil
 }
 
 func (s *PostgresStore) GetLongUrl(shortCode string) (string, error) {
