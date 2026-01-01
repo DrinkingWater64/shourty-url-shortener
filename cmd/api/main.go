@@ -75,7 +75,9 @@ func main() {
 		log.Fatalf("cannot ping to redis %v", err)
 	}
 
-	postgresStore, err := storage.NewPostgresStore(connStr)
+	redisBloom := storage.NewRedisBloom(redisClient, "bloom")
+
+	postgresStore, err := storage.NewPostgresStore(connStr, redisBloom)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/bwmarrin/snowflake"
 	_ "github.com/lib/pq"
 )
@@ -13,10 +12,10 @@ import (
 type PostgresStore struct {
 	DB     *sql.DB
 	Node   *snowflake.Node
-	Filter *bloom.BloomFilter
+	Filter BloomFilter
 }
 
-func NewPostgresStore(connStr string) (*PostgresStore, error) {
+func NewPostgresStore(connStr string, filter BloomFilter) (*PostgresStore, error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -36,8 +35,6 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 		return nil, err
 	}
 
-	filter := bloom.NewWithEstimates(1000000, 0.01)
-
 	rows, err := db.Query("SELECT long_url FROM urls")
 	if err != nil {
 		return nil, err
@@ -50,25 +47,30 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 		if err := rows.Scan(&longUrl); err != nil {
 			return nil, err
 		}
-		filter.AddString(longUrl)
+		filter.Add(longUrl)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return &PostgresStore{DB: db, Node: node, Filter: filter}, nil
+	store := &PostgresStore{DB: db, Node: node, Filter: filter}
+
+	return store, nil
 }
 
 func (s *PostgresStore) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint64) string) (string, error) {
+
 	var shortCode string
 
-	if s.Filter.TestString(longUrl) {
+	if exists, err := s.Filter.Exists(longUrl); exists && err == nil {
 		log.Printf("Found in Bloom Filter: %s", longUrl)
 		err := s.DB.QueryRow("SELECT short_url FROM urls WHERE long_url = $1", longUrl).Scan(&shortCode)
 		if err == nil {
 			return shortCode, nil
 		}
+	} else if err != nil {
+		return "", err
 	}
 
 	log.Printf("Not Found in Bloom Filter: %s", longUrl)
@@ -85,7 +87,7 @@ func (s *PostgresStore) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint
 		return "", err
 	}
 
-	s.Filter.AddString(longUrl)
+	s.Filter.Add(longUrl)
 
 	return shortCode, nil
 }

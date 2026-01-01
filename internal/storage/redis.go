@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -46,4 +47,30 @@ func (r *RedisStore) GetLongUrl(shortCode string) (string, error) {
 
 func (r *RedisStore) GetOrCreateShortUrl(longUrl string, encodeFunc func(uint64) string) (string, error) {
 	return r.next.GetOrCreateShortUrl(longUrl, encodeFunc)
+}
+
+type RedisBloom struct {
+	client *redis.Client
+	key    string
+}
+
+func NewRedisBloom(client *redis.Client, key string) *RedisBloom {
+	err := client.Do(context.Background(), "BF.RESERVE", key, 0.01, 1000000).Err()
+	if err != nil {
+		if strings.Contains(err.Error(), "key exists") || strings.Contains(err.Error(), "item exists") {
+			log.Println("Bloom filter already exists, skipping creation.")
+		} else {
+			log.Fatal(err)
+		}
+	}
+	return &RedisBloom{client: client, key: key}
+}
+
+func (r *RedisBloom) Add(item string) error {
+	return r.client.Do(context.Background(), "BF.ADD", r.key, item).Err()
+}
+
+func (r *RedisBloom) Exists(item string) (bool, error) {
+	val, err := r.client.Do(context.Background(), "BF.EXISTS", r.key, item).Bool()
+	return val, err
 }
