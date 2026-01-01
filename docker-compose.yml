@@ -1,9 +1,14 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: shourty-db
+  # ============================================
+  # PostgreSQL Shards (3 instances)
+  # ============================================
+  postgres-shard-0:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: shourty-shard-0
     restart: unless-stopped
     environment:
       POSTGRES_USER: shourty_user
@@ -12,14 +17,56 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:Z
+      - postgres_shard_0_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U shourty_user -d shortener"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  postgres-shard-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: shourty-shard-1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shourty_user
+      POSTGRES_PASSWORD: shourty_pass
+      POSTGRES_DB: shortener
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_shard_1_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shourty_user -d shortener"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-shard-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: shourty-shard-2
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shourty_user
+      POSTGRES_PASSWORD: shourty_pass
+      POSTGRES_DB: shortener
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_shard_2_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shourty_user -d shortener"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Redis (for caching)
+  # ============================================
   redis:
     image: redis/redis-stack-server:latest
     container_name: shourty-redis
@@ -34,16 +81,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # ============================================
+  # API Instances (all connect to all shards)
+  # ============================================
   api-1:
     build: .
     container_name: shourty-api-1
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://shourty_user:shourty_pass@postgres:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_0=postgres://shourty_user:shourty_pass@postgres-shard-0:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_1=postgres://shourty_user:shourty_pass@postgres-shard-1:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_2=postgres://shourty_user:shourty_pass@postgres-shard-2:5432/shortener?sslmode=disable
+      - NUM_SHARDS=3
       - REDIS_ADDR=redis:6379
       - BASE_URL=http://localhost:9090
     depends_on:
-      postgres:
+      postgres-shard-0:
+        condition: service_healthy
+      postgres-shard-1:
+        condition: service_healthy
+      postgres-shard-2:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -53,11 +110,18 @@ services:
     container_name: shourty-api-2
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://shourty_user:shourty_pass@postgres:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_0=postgres://shourty_user:shourty_pass@postgres-shard-0:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_1=postgres://shourty_user:shourty_pass@postgres-shard-1:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_2=postgres://shourty_user:shourty_pass@postgres-shard-2:5432/shortener?sslmode=disable
+      - NUM_SHARDS=3
       - REDIS_ADDR=redis:6379
       - BASE_URL=http://localhost:9090
     depends_on:
-      postgres:
+      postgres-shard-0:
+        condition: service_healthy
+      postgres-shard-1:
+        condition: service_healthy
+      postgres-shard-2:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -67,15 +131,25 @@ services:
     container_name: shourty-api-3
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://shourty_user:shourty_pass@postgres:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_0=postgres://shourty_user:shourty_pass@postgres-shard-0:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_1=postgres://shourty_user:shourty_pass@postgres-shard-1:5432/shortener?sslmode=disable
+      - DATABASE_SHARD_2=postgres://shourty_user:shourty_pass@postgres-shard-2:5432/shortener?sslmode=disable
+      - NUM_SHARDS=3
       - REDIS_ADDR=redis:6379
       - BASE_URL=http://localhost:9090
     depends_on:
-      postgres:
+      postgres-shard-0:
+        condition: service_healthy
+      postgres-shard-1:
+        condition: service_healthy
+      postgres-shard-2:
         condition: service_healthy
       redis:
         condition: service_healthy
 
+  # ============================================
+  # Nginx Load Balancer
+  # ============================================
   nginx:
     image: nginx:alpine
     container_name: shourty-nginx
@@ -90,7 +164,11 @@ services:
       - api-3
 
 volumes:
-  postgres_data:
+  postgres_shard_0_data:
+    driver: local
+  postgres_shard_1_data:
+    driver: local
+  postgres_shard_2_data:
     driver: local
   redis_data:
     driver: local
