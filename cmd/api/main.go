@@ -10,6 +10,7 @@ import (
 	"os"
 	"shourty/internal/base62"
 	"shourty/internal/storage"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -35,12 +36,6 @@ func main() {
 		log.Println("Warning: .env file not found, using environment variables")
 	}
 
-	// Get database connection string from environment
-	connStr := os.Getenv("DATABASE_URL")
-	if connStr == "" {
-		log.Fatal("DATABASE_URL environment variable is required")
-	}
-
 	// Get base URL from environment
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
@@ -52,17 +47,41 @@ func main() {
 		log.Fatal("REDIS_ADDR environment variable is required")
 	}
 
-	db, err := sql.Open("postgres", connStr)
+	// ============================================
+	// Initialize Sharded PostgreSQL Store
+	// ============================================
+	numShardsStr := os.Getenv("NUM_SHARDS")
+	if numShardsStr == "" {
+		numShardsStr = "3"
+	}
+	numShards, err := strconv.Atoi(numShardsStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Invalid NUM_SHARDS value")
 	}
 
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		log.Fatalf("cannot ping to db %v", err)
+	// Collect all shard connection strings
+	connStrings := make([]string, numShards)
+	for i := 0; i < numShards; i++ {
+		envKey := fmt.Sprintf("DATABASE_SHARD_%d", i)
+		connStr := os.Getenv(envKey)
+		if connStr == "" {
+			log.Fatalf("%s environment variable is required", envKey)
+		}
+		connStrings[i] = connStr
 	}
 
+	// Create sharded store
+	shardedStore, err := storage.NewShardedPostgresStore(connStrings)
+	if err != nil {
+		log.Fatalf("Failed to create sharded store: %v", err)
+	}
+	defer shardedStore.Close()
+
+	log.Printf("Connected to %d database shards", numShards)
+
+	// ============================================
+	// Initialize Redis (for caching)
+	// ============================================
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: "",
@@ -75,14 +94,7 @@ func main() {
 		log.Fatalf("cannot ping to redis %v", err)
 	}
 
-	redisBloom := storage.NewRedisBloom(redisClient, "bloom")
-
-	postgresStore, err := storage.NewPostgresStore(connStr, redisBloom)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	redisStore := storage.NewRedisStore(postgresStore, redisClient)
+	redisStore := storage.NewRedisStore(shardedStore, redisClient)
 
 	s := &Server{
 		store:   redisStore,
