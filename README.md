@@ -7,7 +7,7 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 - **Scalable Architecture**: 3 API instances load-balanced by Nginx.
 - **Distributed IDs**: Uses **Snowflake IDs** (Twitter's format) for time-sortable, collision-free 64-bit unique IDs across distributed nodes.
 - **High-Performance Caching**: **Redis** cache for O(1) URL lookups.
-- **Database Optimization**: PostgreSQL with Connection Pooling and specialized indexing.
+- **Database Optimization**: PostgreSQL with Connection Pooling, **Redis Bloom Filter** for existence checks, and specialized indexing.
 - **Base62 Encoding**: Short, URL-safe strings (e.g., `abc1234`).
 - **Docker Compose**: One-command setup for the entire stack.
 
@@ -16,7 +16,7 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 1.  **Load Balancer (Nginx)**: Distributes traffic across 3 API replicas using a Round-Robin strategy. Exposed on port `9090`.
 2.  **API Layer (Go)**: Stateless Go servers that handle business logic.
 3.  **Caching Layer (Redis)**: Stores hot URL mappings to minimize database hits.
-4.  **Storage Layer (PostgreSQL)**: Durable storage using time-sortable Snowflake IDs.
+4.  **Storage Layer (PostgreSQL)**: Durable storage using time-sortable Snowflake IDs, protected by a Bloom Filter to eliminate expensive 404 queries.
 
 ## Prerequisites
 
