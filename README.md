@@ -8,6 +8,7 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 - **Distributed IDs**: Uses **Snowflake IDs** (Twitter's format) for time-sortable, collision-free 64-bit unique IDs across distributed nodes.
 - **High-Performance Caching**: **Redis** cache for O(1) URL lookups.
 - **Database Optimization**: PostgreSQL with Connection Pooling, **Redis Bloom Filter** for existence checks, and specialized indexing.
+- **Database Sharding**: PostgreSQL with **Database Sharding**. We removed the **Bloom Filter** to allow data duplication, prioritizing write performance and scalability over storage efficiency.
 - **Base62 Encoding**: Short, URL-safe strings (e.g., `abc1234`).
 - **Docker Compose**: One-command setup for the entire stack.
 
@@ -16,7 +17,7 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 1.  **Load Balancer (Nginx)**: Distributes traffic across 3 API replicas using a Round-Robin strategy. Exposed on port `9090`.
 2.  **API Layer (Go)**: Stateless Go servers that handle business logic.
 3.  **Caching Layer (Redis)**: Stores hot URL mappings to minimize database hits.
-4.  **Storage Layer (PostgreSQL)**: Durable storage using time-sortable Snowflake IDs, protected by a Bloom Filter to eliminate expensive 404 queries.
+4.  **Storage Layer (PostgreSQL)**: Durable storage using time-sortable Snowflake IDs. The architecture uses **sharding** and explicitly allows **data duplication** to avoid expensive global uniqueness checks (replacing the previous Bloom Filter approach).
 
 ## Prerequisites
 
@@ -105,7 +106,10 @@ shourty/
 │   └── storage/         # Postgres & Redis implementations
 ├── nginx/               # Nginx configuration
 ├── docker-compose.yml   # Stack definition
+├── Dockerfile           # API Dockerfile
+├── Dockerfile.postgres  # Custom Postgres Dockerfile (Schema & Config)
 ├── init.sql             # SQL Schema
+├── .env.example         # Environment variables template
 └── README.md            # Documentation
 ```
 
