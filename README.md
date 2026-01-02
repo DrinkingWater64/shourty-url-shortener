@@ -50,6 +50,68 @@ graph TD
     API_Layer -->|Write Data| Storage_Layer
 
 ```
+
+## API
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Nginx as Nginx (Port 9090)
+    participant GoAPI as Go API (Replica)
+    participant Redis as Redis Cache
+    participant Postgres as Postgres (Shards)
+
+    User->>Nginx: GET /{short code}
+    Note over Nginx: Round-Robin Selection
+    Nginx->>GoAPI: Forward Request
+    
+    GoAPI->>Redis: GET /{short code}
+    
+    alt Cache Hit
+        Redis-->>GoAPI: Return Original URL
+    else Cache Miss
+        GoAPI->>Postgres: Query URL by {short code}
+        Note over Postgres: Query specific Shard
+        Postgres-->>GoAPI: Return Original URL
+        GoAPI->>Redis: SET {short code} (with TTL)
+        Note right of Redis: Store hot data for next request
+    end
+
+    GoAPI-->>User: 302 Redirect to Original URL
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Nginx as Nginx (9090)
+    participant GoAPI as Go API (handleShorten)
+    participant Snowflake as Snowflake Node
+    participant ShardManager as Shard Manager (FNV-1a)
+    participant Postgres as Postgres (Selected Shard)
+
+    User->>Nginx: POST /shorten {long_url}
+    Nginx->>GoAPI: Forward Request
+    
+    rect rgb(0, 0, 0)
+    Note over GoAPI, Snowflake: ID Generation & Encoding
+    GoAPI->>Snowflake: Generate()
+    Snowflake-->>GoAPI: snowflakeID (Int64)
+    GoAPI->>GoAPI: base62.Encode(id)
+    end
+
+    rect rgb(0, 0, 0)
+    Note over GoAPI, ShardManager: Shard Routing
+    GoAPI->>ShardManager: getShard(shortCode)
+    ShardManager->>ShardManager: FNV Hash % NumShards
+    ShardManager-->>GoAPI: *sql.DB (Shard Connection)
+    end
+
+    GoAPI->>Postgres: INSERT INTO urls (id, long_url, short_url)
+    Postgres-->>GoAPI: Success/Error
+    
+    GoAPI-->>User: 200 OK {short_url}
+```
 ## Prerequisites
 
 - Docker and Docker Compose (recommended)
