@@ -15,7 +15,43 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 2.  **API Layer (Go)**: Stateless Go servers that handle business logic.
 3.  **Caching Layer (Redis)**: Stores hot URL mappings using **TTL-based caching** (Time-To-Live) to minimize database hits and manage memory usage.
 4.  **Storage Layer (PostgreSQL)**: Durable storage using time-sortable Snowflake IDs. The architecture uses **sharding** and explicitly allows **data duplication** to avoid expensive global uniqueness checks (replacing the previous Bloom Filter approach).
+```mermaid
+graph TD
+    subgraph Public_Internet [External Traffic]
+        User((User/Client))
+    end
 
+    subgraph Load_Balancing [Traffic Distribution]
+        LB[Nginx Load Balancer<br/>Port: 9090]
+    end
+
+    subgraph API_Layer [Stateless Go Replicas]
+        API1[Go API Instance 1]
+        API2[Go API Instance 2]
+        API3[Go API Instance 3]
+    end
+
+    subgraph Caching_Layer [In-Memory Storage]
+        Redis[(Redis Cache<br/>TTL-based Mappings)]
+    end
+
+    subgraph Storage_Layer [Distributed Persistence]
+        PG_Shard1[(PostgreSQL Shard 1<br/>Snowflake IDs)]
+        PG_Shard2[(PostgreSQL Shard 2<br/>Snowflake IDs)]
+        PG_ShardN[(PostgreSQL Shard N<br/>Snowflake IDs)]
+    end
+
+    %% Connections
+    User -->|HTTP Requests| LB
+    LB -->|Round-Robin| API1
+    LB -->|Round-Robin| API2
+    LB -->|Round-Robin| API3
+
+    API1 & API2 & API3 <-->|Read/Write Hot Data| Redis
+    API1 & API2 & API3 -->|Write Duplicate Data| PG_Shard1
+    API1 & API2 & API3 -->|Write Duplicate Data| PG_Shard2
+    API1 & API2 & API3 -->|Write Duplicate Data| PG_ShardN
+```
 ## Prerequisites
 
 - Docker and Docker Compose (recommended)
