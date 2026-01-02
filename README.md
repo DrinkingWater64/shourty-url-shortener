@@ -6,7 +6,7 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 
 - **Core Functionality**: Takes a long URL and generates a unique short alias using **Base62** encoding.
 - **Simple Schema**: Minimalist database design focusing purely on URL mapping.
-- **No Analytics**: Deliberately excludes statistical tracking (click rates, geoa-data) to prioritize simplicity.
+- **No Analytics**: Deliberately excludes statistical tracking (click rates, geo-data) to prioritize simplicity.
 - **Scalable Design**: Demonstrating distributed systems patterns like sharding and eventual consistency.
 
 ## Architecture
@@ -59,7 +59,7 @@ sequenceDiagram
     participant Nginx as Nginx (Port 9090)
     participant GoAPI as Go API (Replica)
     participant Redis as Redis Cache
-    participant Postgres as Postgres (Shards)
+    participant Postgres as Postgres (Shard X)
 
     User->>Nginx: GET /{short code}
     Note over Nginx: Round-Robin Selection
@@ -71,7 +71,7 @@ sequenceDiagram
         Redis-->>GoAPI: Return Original URL
     else Cache Miss
         GoAPI->>Postgres: Query URL by {short code}
-        Note over Postgres: Query specific Shard
+        Note over Postgres: Query calculated Shard
         Postgres-->>GoAPI: Return Original URL
         GoAPI->>Redis: SET {short code} (with TTL)
         Note right of Redis: Store hot data for next request
@@ -86,26 +86,22 @@ sequenceDiagram
     actor User
     participant Nginx as Nginx (9090)
     participant GoAPI as Go API (handleShorten)
-    participant Snowflake as Snowflake Node
-    participant ShardManager as Shard Manager (FNV-1a)
-    participant Postgres as Postgres (Selected Shard)
+    participant IDGen as IDGen (Internal)
+    participant Router as Router (Internal)
+    participant Postgres as Postgres (Shard X)
 
     User->>Nginx: POST /shorten {long_url}
     Nginx->>GoAPI: Forward Request
     
-    rect rgb(0, 0, 0)
-    Note over GoAPI, Snowflake: ID Generation & Encoding
-    GoAPI->>Snowflake: Generate()
-    Snowflake-->>GoAPI: snowflakeID (Int64)
+    Note over GoAPI, IDGen: ID Generation & Strategy
+    GoAPI->>IDGen: Generate()
+    IDGen-->>GoAPI: snowflakeID (Int64)
     GoAPI->>GoAPI: base62.Encode(id)
-    end
 
-    rect rgb(0, 0, 0)
-    Note over GoAPI, ShardManager: Shard Routing
-    GoAPI->>ShardManager: getShard(shortCode)
-    ShardManager->>ShardManager: FNV Hash % NumShards
-    ShardManager-->>GoAPI: *sql.DB (Shard Connection)
-    end
+    Note over GoAPI, Router: Internal Shard Routing
+    GoAPI->>Router: getShard(shortCode)
+    Router->>Router: FNV Hash % NumShards
+    Router-->>GoAPI: *sql.DB (Shard Connection)
 
     GoAPI->>Postgres: INSERT INTO urls (id, long_url, short_url)
     Postgres-->>GoAPI: Success/Error
