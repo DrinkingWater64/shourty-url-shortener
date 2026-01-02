@@ -36,21 +36,19 @@ graph TD
     end
 
     subgraph Storage_Layer [Distributed Persistence]
-        PG_Shard1[(PostgreSQL Shard 1<br/>Snowflake IDs)]
-        PG_Shard2[(PostgreSQL Shard 2<br/>Snowflake IDs)]
-        PG_ShardN[(PostgreSQL Shard N<br/>Snowflake IDs)]
+        PG_Shard1[(PostgreSQL Shard 1)]
+        PG_Shard2[(PostgreSQL Shard 2)]
+        PG_ShardN[(PostgreSQL Shard 3)]
     end
 
     %% Connections
     User -->|HTTP Requests| LB
-    LB -->|Round-Robin| API1
-    LB -->|Round-Robin| API2
-    LB -->|Round-Robin| API3
+    LB -->|Round-Robin| API_Layer 
 
-    API1 & API2 & API3 <-->|Read/Write Hot Data| Redis
-    API1 & API2 & API3 -->|Write Duplicate Data| PG_Shard1
-    API1 & API2 & API3 -->|Write Duplicate Data| PG_Shard2
-    API1 & API2 & API3 -->|Write Duplicate Data| PG_ShardN
+
+    API_Layer <-->|Read/Write Hot Data| Redis
+    API_Layer -->|Write Data| Storage_Layer
+
 ```
 ## Prerequisites
 
