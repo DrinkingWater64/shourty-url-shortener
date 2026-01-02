@@ -1,3 +1,7 @@
+// DEPRECATED: This file is currently dead code and is NOT used in the running application.
+// The active storage implementation is in sharded_postgres.go, which supports database sharding.
+// This file is kept for historical reference only.
+
 package storage
 
 import (

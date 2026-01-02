@@ -4,19 +4,16 @@ This project is an educational experiment to demonstrate a highly scalable, dist
 
 ## Features
 
-- **Scalable Architecture**: 3 API instances load-balanced by Nginx.
-- **Distributed IDs**: Uses **Snowflake IDs** (Twitter's format) for time-sortable, collision-free 64-bit unique IDs across distributed nodes.
-- **High-Performance Caching**: **Redis** cache for O(1) URL lookups.
-- **Database Optimization**: PostgreSQL with Connection Pooling, **Redis Bloom Filter** for existence checks, and specialized indexing.
-- **Database Sharding**: PostgreSQL with **Database Sharding**. We removed the **Bloom Filter** to allow data duplication, prioritizing write performance and scalability over storage efficiency.
-- **Base62 Encoding**: Short, URL-safe strings (e.g., `abc1234`).
-- **Docker Compose**: One-command setup for the entire stack.
+- **Core Functionality**: Takes a long URL and generates a unique short alias using **Base62** encoding.
+- **Simple Schema**: Minimalist database design focusing purely on URL mapping.
+- **No Analytics**: Deliberately excludes statistical tracking (click rates, geoa-data) to prioritize simplicity.
+- **Scalable Design**: Demonstrating distributed systems patterns like sharding and eventual consistency.
 
 ## Architecture
 
 1.  **Load Balancer (Nginx)**: Distributes traffic across 3 API replicas using a Round-Robin strategy. Exposed on port `9090`.
 2.  **API Layer (Go)**: Stateless Go servers that handle business logic.
-3.  **Caching Layer (Redis)**: Stores hot URL mappings to minimize database hits.
+3.  **Caching Layer (Redis)**: Stores hot URL mappings using **TTL-based caching** (Time-To-Live) to minimize database hits and manage memory usage.
 4.  **Storage Layer (PostgreSQL)**: Durable storage using time-sortable Snowflake IDs. The architecture uses **sharding** and explicitly allows **data duplication** to avoid expensive global uniqueness checks (replacing the previous Bloom Filter approach).
 
 ## Prerequisites
