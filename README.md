@@ -2,12 +2,27 @@
 
 This project is an educational experiment to demonstrate a highly scalable, distributed URL shortener architecture. It implements advanced patterns like load balancing, caching, and distributed ID generation.
 
-## Features
+## Key Design Decisions
 
-- **Core Functionality**: Takes a long URL and generates a unique short alias using **Base62** encoding.
-- **Simple Schema**: Minimalist database design focusing purely on URL mapping.
-- **No Analytics**: Deliberately excludes statistical tracking (click rates, geo-data) to prioritize simplicity.
-- **Scalable Design**: Demonstrating distributed systems patterns like sharding and eventual consistency.
+- **Base62 encoding**
+  Generates compact, URL-friendly identifiers without external dependencies.
+- **Redis caching**
+  Optimizes redirect latency for frequently accessed URLs and reduces DB load.
+- **Stateless services**
+  Enables horizontal scaling behind Nginx.
+- **Dockerized setup**
+  Simplifies local development and mirrors production-like environments.
+
+## Current Limitations
+
+This is an intentionally scoped project. Some features are out of scope for now:
+
+- Click analytics
+- Authentication
+- Rate limiting
+- URL expiration
+
+These are documented as future improvements.
 
 ## Architecture
 
@@ -108,6 +123,9 @@ sequenceDiagram
     
     GoAPI-->>User: 200 OK {short_url}
 ```
+## Design Notes
+For a deeper dive into the architectural decisions (Why Redis? Why Sharding?), read the full **[Design Notes](DESIGN_NOTES.md)**.
+
 ## Prerequisites
 
 - Docker and Docker Compose (recommended)
